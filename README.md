@@ -1,16 +1,17 @@
 # I²Cデバイスをクラス化するまで：ステップ・バイ・ステップ
 ## これはなに？
-MicroPythonを使ってマイコンに接続したLM75B互換のI²C温度センサ（LM75B，PCT2075，P3T1085など）をオブジェクト指向でハードを抽象化するまでを説明します．  
-このドキュメントが，この説明のメイン部分で，`samples`フォルダ以下のコードは各ステップでのコード例です．  
-マイコン基板にIMXRT1050-EVKBを用いて，まずこの基板上のLEDの点滅を確認．そのあとMicroPythonの超基本的な動作を見ます．  
-そのあとでI²Cで接続されたデバイスのアクセス試して，コードを徐々に変更させて，クラス化するまでを説明します．
+MicroPythonを使ってマイコンに接続したLM75B互換のI²C温度センサ（LM75B，PCT2075，P3T1085など）を読んでくる例を使って，オブジェクト指向でハードを抽象化する方法を段階的に説明します．  
+このドキュメント自体がこのリポジトリのメイン部分で，`samples`フォルダ以下のコードは各ステップで示したコードの例です．  
+
+最初にマイコン基板のIMXRT1050-EVKBを用いて，まず基板上のLEDの点滅を確認．そのあとMicroPythonのごく基本的な動作を確認します．  
+そのあとでI²Cで接続されたデバイスのアクセス試してからコードを徐々に変更，クラス化するまでを説明します．
 
 ## 動かしてみる
 
 ### ステップ0：マイコン基板動作の確認
 IMXRT1050-EVKBには"D4"ピンにLEDが接続されています．これを対話式の環境(REPL)で動かしてみます．  
 サンプルコード`step00_LED_by_manual_operation.py`を手で打ってみます．  
-`import machine`はMicroPythonに組み込まれたハードウェア制御用ライブラリを使用可能にします．  
+`import machine`でMicroPythonに組み込まれたハードウェア制御用ライブラリを使用可能にします．  
 `pin=machine.Pin("D4",machine.Pin.OUT)`はそのライブラリの`Pin`クラスを使って`"D4"`ピンを出力として使えるようにし，`pin`という名のインスタンスを作ります．  
 `pin.value(1)`と`pin.value(0)`はpinインスタンスのメソッド（インスタンスに属する関数）を，`1`または`0`の引数を与えて呼び出しています．  
 1行ごとに入力するたびにリターンキーを押して入力，`pin.value(1)`，`pin.value(0)`を実行するたびにLEDが消灯，点灯します．
@@ -23,6 +24,12 @@ pin.value(1)
 pin.value(0)
 ```
 
+> **Note**
+この`machine.Pin`のようにハードウェアを使いやすく見せるのが，ここから先で説明する「デバイスのクラス化」という話です．  
+コード例の中の`pin`インスタンスは`machine.Pin`クラスによって作られます．  
+インスタンスが作られる時に属性が与えられ（ここでは"D4"ピン指定や出力設定），それ以降，メソッド（インスタンスに属する関数）によって操作を行えるようにします．  
+I²C接続の温度センサから簡単に現在の温度を読めるように，このクラスを作る手順を示します．
+
 ### ステップ1：自動化してみる
 ステップ0の作業をスクリプトとして実行します．  
 上記の組み込みライブラリの他に，もう一つ`utime`を使えるようにします．
@@ -33,51 +40,53 @@ pin.value(0)
 
 _step01_LED_by_script.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
-pin	= machine.Pin( "D4", machine.Pin.OUT )
+pin = machine.Pin( "D4", machine.Pin.OUT )
 
 while True:
-	pin.value( 1 )
-	utime.sleep(0.1)
+    pin.value( 1 )
+    utime.sleep(0.1)
 
-	pin.value( 0 )
-	utime.sleep(0.1)
+    pin.value( 0 )
+    utime.sleep(0.1)
 ```
 
 ### ステップ2：変数を使って操作
 次は変数を使ってみます．  
-先頭の行は`#`で始まっています．これはコメントで実際のプログラム実行時には無視される部分です．  
+先頭の行は`#`で始まっています．この行は「コメント」となり，実際のプログラム実行時には無視される部分になります．  
 
-`pin`インスタンスを作ったあとに，`state`という名の変数が使われています．これに`0`が代入されています．
+`pin`インスタンスを作った次の行に変数があります．  
+`state`という名の変数で．これに`0`が代入されています．（Pythonではあらかじめ変数を宣言する必要はありません）
 
-ループの中では`if`が使われています．これによって`state`の値を確認しています．`if state:`は`state`が「ゼロではない」ことを確認した時に，次のインデントされた部分を実行します．  
-`else`以下には，上記の`if`の条件に合わなかった時に実行される部分を書いておきます．  
-この例では`state`が0出なかった時には`state = 0`を，`state`が0だった時には`state = 1`を実行します．  
+ループの中では`if`が使われています．これによって`state`の値でプログラムの動作が変わります．`if state:`は`state`が「True」（ゼロではない）ことを確認した時に，次のインデントされた部分を実行します．  
+`else`以下には，上記の`if`の条件に合わなかった時に実行されるコードを書いておきます．  
+この例では`state`が「0」でなかった時には`state`に0を代入，`state`が「0」だった時には`state`に1を代入します．  
 
-`pin.value( state )`は`1`や`0`を引数として与える代わりに変数を与えています．これにより変数の値によってLEDがON/OFFします．
+`pin.value( state )`では`1`や`0`を引数として与える代わりに変数を与えています．これにより変数の値によってLEDがON/OFFします．
 
 _step02_variable.py_
 ```python
 ### this code has a bug. need to fix to run :)
 
-import	machine
-import	utime
+import machine
+importutime
 
-pin		= machine.Pin( "D4", machine.Pin.OUT )
-state	= 0
+pin   = machine.Pin( "D4", machine.Pin.OUT )
+state = 0
 
 while True:
-	if state:
-		state	= 0
-	else
-		state	= 1
+    if state:
+        state = 0
+    else
+        state = 1
 
-	pin.value( state )
-	utime.sleep(0.1)
+    pin.value( state )
+    utime.sleep(0.1)
 ```
 
+> **Warning**
 ちなみに，このコード例にはバグがあります．`else`は最後にコロンをつけて`else:`としておかなければ動作しません．
 
 ### ステップ3：三本締め
@@ -92,18 +101,18 @@ while True:
 
 _step03_list.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
-pin		= machine.Pin( "D4", machine.Pin.OUT )
-pattern	= [1,1,1,0,1,1,1,0,1,1,1,0,1]
+pin     = machine.Pin( "D4", machine.Pin.OUT )
+pattern = [1,1,1,0,1,1,1,0,1,1,1,0,1]
 
 for v in pattern:
-	pin.value( v )
-	utime.sleep(0.1)
+    pin.value( v )
+    utime.sleep(0.1)
 
-	pin.value( 0 )
-	utime.sleep(0.1)
+    pin.value( 0 )
+    utime.sleep(0.1)
 ```
 
 ### ステップ4：`print`とリスト
@@ -113,25 +122,25 @@ for v in pattern:
 
 _step04_print.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
-pin		= machine.Pin( "D4", machine.Pin.OUT )
-pattern	= [ 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1 ]
+pin     = machine.Pin( "D4", machine.Pin.OUT )
+pattern = [ 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1 ]
 
 print( "Hello, world!" )
 print( pattern )
 
-pat2	= [ 1, 2**32, 3.14, "Strawberry", "fields", True, False ]
+pat2    = [ 1, 2**32, 3.14, "Strawberry", "fields", True, False ]
 print( pat2 )
 
 
 for v in pattern:
-	pin.value( v )
-	utime.sleep(0.1)
+    pin.value( v )
+    utime.sleep(0.1)
 
-	pin.value( 0 )
-	utime.sleep(0.1)
+    pin.value( 0 )
+    utime.sleep(0.1)
 ```
 
 _実行結果_
@@ -142,8 +151,8 @@ Hello, world!
 ```
 
 ### ステップ5：I²C
-I²Cは簡単に動作させることができます．  
-IMXRT1050-EVKBにPCT2075の評価基板PCT2075DP-ARDを接続します．  
+I²Cは，簡単に動作させることができます．  
+IMXRT1050-EVKBにPCT2075の評価基板「PCT2075DP-ARD」を接続しておきます．  
 
 `i2c = machine.I2C( 0 )`はmachineライブラリのI2Cクラスを使ってi2cインスタンスを作っています．引数に与えた`0`はハードウェアを指定するための数値で，これを指定することにより"A4"と"A5"ピンをI²Cとして使用できるようになります．
 
@@ -154,10 +163,10 @@ IMXRT1050-EVKBには基板上にあらかじめ2個のデバイスが搭載，�
 
 _step05_I2C.py_
 ```python
-import	machine
+import machine
 
-i2c			= machine.I2C( 0 )
-dev_list	= i2c.scan()
+i2c      = machine.I2C( 0 )
+dev_list = i2c.scan()
 print( dev_list )
 ```
 
@@ -178,10 +187,10 @@ PCT2075では電源投入後，そのままデータを読み出せば，現在�
 
 _step06_I2C_read_PCT2075.py_
 ```python
-import	machine
+import machine
 
-i2c		= machine.I2C( 0 )
-value	= i2c.readfrom( 72, 2 )
+i2c   = machine.I2C( 0 )
+value = i2c.readfrom( 72, 2 )
 print( value )
 ```
 
@@ -198,17 +207,15 @@ b'\x1a\x00'
 
 _step07_I2C_read_PCT2075.py_
 ```python
-import	machine
+import machine
 
-i2c		= machine.I2C( 0 )
-value	= i2c.readfrom( 72, 2 )
-print( value )	# read value is in bytearray format
+i2c   = machine.I2C( 0 )
+value = i2c.readfrom( 72, 2 )
+print( value )    # read value is in bytearray format
 
-v	= list( value )
+v = list( value )
 print( v )
 ```
-
-
 _実行結果_
 ```
 b'\x1a\x00'
@@ -225,17 +232,16 @@ b'\x1a\x00'
 
 _step07_I2C_read_PCT2075.py_
 ```python
-import	machine
+import machine
 
-i2c		= machine.I2C( 0 )
-value	= i2c.readfrom( 72, 2 )
-print( value )	# read value is in bytearray format
+i2c   = machine.I2C( 0 )
+value = i2c.readfrom( 72, 2 )
+print( value )    # read value is in bytearray format
 
-v	= list( value )
+v = list( value )
 print( v )
 
-
-temp16bit	= (v[ 0 ] << 8) | v[ 1 ]
+temp16bit = (v[ 0 ] << 8) | v[ 1 ]
 print( temp16bit )
 print( temp16bit / 256 )
 ```
@@ -256,13 +262,13 @@ b'\x1a\x00'
 
 _step07_I2C_read_PCT2075.py_
 ```python
-import	machine
+import machine
 
-i2c		= machine.I2C( 0 )
+i2c   = machine.I2C( 0 )
 
-value	= i2c.readfrom( 72, 2 )
-v		= list( value )
-temp	= ((v[ 0 ] << 8) | v[ 1 ]) / 256
+value = i2c.readfrom( 72, 2 )
+v     = list( value )
+temp  = ((v[ 0 ] << 8) | v[ 1 ]) / 256
 print( temp )
 ```
 
@@ -272,20 +278,20 @@ print( temp )
 
 _step10_I2C_read_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
-i2c		= machine.I2C( 0 )
+i2c = machine.I2C( 0 )
 
 # trying to get temp every second
 
 while True:
-	value	= i2c.readfrom( 72, 2 )
-	v		= list( value )
-	temp	= ((v[ 0 ] << 8) | v[ 1 ]) / 256
-	print( temp )
-	
-	utime.sleep( 1 )
+    value = i2c.readfrom( 72, 2 )
+    v     = list( value )
+    temp  = ((v[ 0 ] << 8) | v[ 1 ]) / 256
+    print( temp )
+    
+    utime.sleep( 1 )
 ```
 _実行結果_
 ```
@@ -311,26 +317,24 @@ MicroPythonはプログラムを先頭行から読んでいきますが，関数
 
 _step10_I2C_read_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 def read_temp():
-	value	= i2c.readfrom( 72, 2 )
-	v		= list( value )
-	temp	= ((v[ 0 ] << 8) | v[ 1 ]) / 256
+    value = i2c.readfrom( 72, 2 )
+    v     = list( value )
+    temp  = ((v[ 0 ] << 8) | v[ 1 ]) / 256
 
-	return temp	
+    return temp    
 
-
-
-i2c		= machine.I2C( 0 )
+i2c = machine.I2C( 0 )
 
 # trying to get temp every second
 
 while True:
-	t	= read_temp()
-	print( t )
-	utime.sleep( 1 )
+    t = read_temp()
+    print( t )
+    utime.sleep( 1 )
 ```
 
 ### ステップ12：さらにシンプルに書き換え
@@ -339,20 +343,18 @@ while True:
 
 _step12_function_condensed_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 def read_temp():
-	v		= list( i2c.readfrom( 72, 2 ) )
-	return ((v[ 0 ] << 8) | v[ 1 ]) / 256
+    v = list( i2c.readfrom( 72, 2 ) )
+    return ((v[ 0 ] << 8) | v[ 1 ]) / 256
 
-
-
-i2c		= machine.I2C( 0 )
+i2c = machine.I2C( 0 )
 
 while True:
-	print( read_temp() )
-	utime.sleep( 1 )
+    print( read_temp() )
+    utime.sleep( 1 )
 ```
 
 ### ステップ13：複数の温度センサを扱えるようにしてみる
@@ -364,20 +366,18 @@ while True:
 
 _step13_function_flexible_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 def read_temp( address ):
-	v		= list( i2c.readfrom( address, 2 ) )
-	return ((v[ 0 ] << 8) | v[ 1 ]) / 256
+    v = list( i2c.readfrom( address, 2 ) )
+    return ((v[ 0 ] << 8) | v[ 1 ]) / 256
 
-
-
-i2c		= machine.I2C( 0 )
+i2c = machine.I2C( 0 )
 
 while True:
-	print( read_temp( 72 ) )
-	utime.sleep( 1 )
+    print( read_temp( 72 ) )
+    utime.sleep( 1 )
 ```
 
 
@@ -390,22 +390,20 @@ while True:
 
 _step14_multiple_dev_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 def read_temp( address ):
-	v		= list( i2c.readfrom( address, 2 ) )
-	return ((v[ 0 ] << 8) | v[ 1 ]) / 256
+    v = list( i2c.readfrom( address, 2 ) )
+    return ((v[ 0 ] << 8) | v[ 1 ]) / 256
 
-
-
-i2c		= machine.I2C( 0 )
+i2c = machine.I2C( 0 )
 
 while True:
-	print( read_temp( 72 ) )
-	print( read_temp( 73 ) )
-	print( read_temp( 74 ) )
-	utime.sleep( 1 )
+    print( read_temp( 72 ) )
+    print( read_temp( 73 ) )
+    print( read_temp( 74 ) )
+    utime.sleep( 1 )
 ```
 
 ### ステップ15：複数のバスに繋がった複数の温度センサを読む
@@ -416,26 +414,24 @@ while True:
 
 _step15_multiple_bus_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 def read_temp( bus, address ):
-	v		= list( bus.readfrom( address, 2 ) )
-	return ((v[ 0 ] << 8) | v[ 1 ]) / 256
+    v = list( bus.readfrom( address, 2 ) )
+    return ((v[ 0 ] << 8) | v[ 1 ]) / 256
 
-
-
-i2c_0		= machine.I2C( 0 )
-i2c_1		= machine.I2C( 1 )
+i2c_0 = machine.I2C( 0 )
+i2c_1 = machine.I2C( 1 )
 
 while True:
-	print( read_temp( i2c_0, 72 ) )
-	print( read_temp( i2c_0, 73 ) )
-	print( read_temp( i2c_0, 74 ) )
-	print( read_temp( i2c_1, 72 ) )
-	print( read_temp( i2c_1, 73 ) )
-	print( read_temp( i2c_1, 74 ) )
-	utime.sleep( 1 )
+    print( read_temp( i2c_0, 72 ) )
+    print( read_temp( i2c_0, 73 ) )
+    print( read_temp( i2c_0, 74 ) )
+    print( read_temp( i2c_1, 72 ) )
+    print( read_temp( i2c_1, 73 ) )
+    print( read_temp( i2c_1, 74 ) )
+    utime.sleep( 1 )
 
 ```
 
@@ -463,65 +459,61 @@ while True:
 
 _step16_class_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 class temp_sensor:
-	def __init__( self, bus, address ):
-		self.__bus	= bus
-		self.__adr	= address
-	
-	def read( self ):
-		v		= list( self.__bus.readfrom( self.__adr, 2 ) )
-		return ((v[ 0 ] << 8) | v[ 1 ]) / 256
-		
-
-i2c		= machine.I2C( 0 )
-ts		= temp_sensor( i2c, 72 )
+    def __init__( self, bus, address ):
+        self.__bus = bus
+        self.__adr = address
+    
+    def read( self ):
+        v = list( self.__bus.readfrom( self.__adr, 2 ) )
+        return ((v[ 0 ] << 8) | v[ 1 ]) / 256
+        
+i2c = machine.I2C( 0 )
+ts  = temp_sensor( i2c, 72 )
 
 while True:
-	print( ts.read() )
-	utime.sleep( 1 )
-
+    print( ts.read() )
+    utime.sleep( 1 )
+```
 
 ### ステップ17：
 ステップ15の「複数のバスに繋がった複数の温度センサを読む」は，この例のように書き換えることができます．
-__
+
+_step17_class_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 class temp_sensor:
-	def __init__( self, bus, address ):
-		self.__bus	= bus
-		self.__adr	= address
-	
-	def read( self ):
-		v		= list( self.__bus.readfrom( self.__adr, 2 ) )
-		return ((v[ 0 ] << 8) | v[ 1 ]) / 256
-		
+    def __init__( self, bus, address ):
+        self.__bus = bus
+        self.__adr = address
+    
+    def read( self ):
+        v = list( self.__bus.readfrom( self.__adr, 2 ) )
+        return ((v[ 0 ] << 8) | v[ 1 ]) / 256
 
-i2c_0		= machine.I2C( 0 )
-i2c_1		= machine.I2C( 1 )
+i2c_0 = machine.I2C( 0 )
+i2c_1 = machine.I2C( 1 )
 
-ts0		= temp_sensor( i2c_0, 72 )
-ts1		= temp_sensor( i2c_0, 73 )
-ts2		= temp_sensor( i2c_0, 74 )
-ts3		= temp_sensor( i2c_1, 72 )
-ts4		= temp_sensor( i2c_1, 73 )
-ts5		= temp_sensor( i2c_1, 74 )
+ts0   = temp_sensor( i2c_0, 72 )
+ts1   = temp_sensor( i2c_0, 73 )
+ts2   = temp_sensor( i2c_0, 74 )
+ts3   = temp_sensor( i2c_1, 72 )
+ts4   = temp_sensor( i2c_1, 73 )
+ts5   = temp_sensor( i2c_1, 74 )
 
 while True:
-	print( ts0.read() )
-	print( ts1.read() )
-	print( ts2.read() )
-	print( ts3.read() )
-	print( ts4.read() )
-	print( ts5.read() )
-	utime.sleep( 1 )
-```
-_実行結果_
-```
+    print( ts0.read() )
+    print( ts1.read() )
+    print( ts2.read() )
+    print( ts3.read() )
+    print( ts4.read() )
+    print( ts5.read() )
+    utime.sleep( 1 )
 ```
 
 ### ステップ18：複数デバイスの管理をインスタンスのリストに
@@ -530,36 +522,32 @@ _実行結果_
 
 _step18_class_PCT2075.py_
 ```python
-import	machine
-import	utime
+import machine
+import utime
 
 class temp_sensor:
-	def __init__( self, bus, address ):
-		self.__bus	= bus
-		self.__adr	= address
-	
-	def read( self ):
-		v		= list( self.__bus.readfrom( self.__adr, 2 ) )
-		return ((v[ 0 ] << 8) | v[ 1 ]) / 256
-		
+    def __init__( self, bus, address ):
+        self.__bus = bus
+        self.__adr = address
+    
+    def read( self ):
+        v = list( self.__bus.readfrom( self.__adr, 2 ) )
+        return ((v[ 0 ] << 8) | v[ 1 ]) / 256
 
-i2c_0		= machine.I2C( 0 )
-i2c_1		= machine.I2C( 1 )
+i2c_0 = machine.I2C( 0 )
+i2c_1 = machine.I2C( 1 )
 
-ts_list		= [	temp_sensor( i2c_0, 72 ), 
-				temp_sensor( i2c_0, 73 ),
-				temp_sensor( i2c_0, 74 ),
-				temp_sensor( i2c_1, 72 ),
-				temp_sensor( i2c_1, 73 ),
-				temp_sensor( i2c_1, 74 )
-			  ]
-			  
+ts_list = [ temp_sensor( i2c_0, 72 ), 
+            temp_sensor( i2c_0, 73 ),
+            temp_sensor( i2c_0, 74 ),
+            temp_sensor( i2c_1, 72 ),
+            temp_sensor( i2c_1, 73 ),
+            temp_sensor( i2c_1, 74 )
+            ]
+              
 while True:
-	for ts in ts_list:
-		print( ts.read() )
-		utime.sleep( 1 )
-```
-_実行結果_
-```
+    for ts in ts_list:
+        print( ts.read() )
+        utime.sleep( 1 )
 ```
 

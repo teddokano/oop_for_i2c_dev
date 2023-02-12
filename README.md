@@ -71,7 +71,7 @@ _step02_variable.py_
 ### this code has a bug. need to fix to run :)
 
 import machine
-importutime
+import utime
 
 pin   = machine.Pin( "D4", machine.Pin.OUT )
 state = 0

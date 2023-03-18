@@ -6,8 +6,11 @@ MicroPythonを使ってマイコンに接続したLM75B互換のI²C温度セン
 最初にマイコン基板のIMXRT1050-EVKBを用いて，まず基板上のLEDの点滅を確認．そのあとMicroPythonのごく基本的な動作を確認します．  
 そのあとでI²Cで接続されたデバイスのアクセス試してからコードを徐々に変更，クラス化するまでを説明します．
 
-## 動かしてみる
+> **Note**
+この記事はgithubで[「I²Cデバイスをクラス化するまで：ステップ・バイ・ステップ」](https://github.com/teddokano/oop_for_i2c_dev)として公開している内容に変更を加えて転載したものです． 
+すべてのコード例は上記リンク・サイト内の`samples`フォルダから入手可能です．
 
+## 動かしてみる:MicroPythonでのLチカ
 ### ステップ0：マイコン基板動作の確認
 IMXRT1050-EVKBには"D4"ピンにLEDが接続されています．これを対話式の環境(REPL)で動かしてみます．  
 サンプルコード`step00_LED_by_manual_operation.py`を手で打ってみます．  
@@ -149,7 +152,7 @@ Hello, world!
 [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1]
 [1, 4294967296, 3.14, 'Strawberry', 'fields', True, False]
 ```
-
+## I²Cデバイスの動作確認
 ### ステップ5：I²C
 I²Cは，簡単に動作させることができます．  
 IMXRT1050-EVKBにPCT2075の評価基板「PCT2075DP-ARD」を接続しておきます．  
@@ -230,7 +233,7 @@ b'\x1a\x00'
 1バイト目を8ビット左シフトし，2バイト目の値とビット・オアをとっています．
 この値を256で割れば，摂氏温度での値が得られます．
 
-_step07_I2C_read_PCT2075.py_
+_step08_I2C_read_PCT2075.py_
 ```python
 import machine
 
@@ -260,7 +263,7 @@ b'\x1a\x00'
 これをシンプルに書き換えました．  
 表示には摂氏温度の値のみが出てきます．
 
-_step07_I2C_read_PCT2075.py_
+_step09_I2C_read_PCT2075_
 ```python
 import machine
 
@@ -315,7 +318,7 @@ MicroPythonはプログラムを先頭行から読んでいきますが，関数
 
 実行結果はステップ9の例と同様です．
 
-_step10_I2C_read_PCT2075.py_
+_step11_function_PCT2075.py_
 ```python
 import machine
 import utime
@@ -434,7 +437,7 @@ while True:
     utime.sleep( 1 )
 
 ```
-
+## I²Cデバイスのクラス化
 ### ステップ16：クラス化
 ステップ14の例では各デバイスを読む際に，「どのバス」の「どのアドレス」からという指定が必要でした．  
 これをコード内で管理するのは煩雑です．  

@@ -17,6 +17,12 @@ MicroPythonを使ってマイコンに接続したLM75B互換のI²C温度セン
 すべてのコード例はこのサイト内の`samples`フォルダから入手可能です．
 
 ## 動かしてみる:MicroPythonでのLチカ
+
+この記事での例は，マイコン基板に[IMXRT1050-EVKB](https://www.nxp.jp/design/development-boards/i-mx-evaluation-and-development-boards/i-mx-rt1050-evaluation-kit:MIMXRT1050-EVK)を使用しています． 
+この基板でのMicroPythonの動かし方は，下の動画(日本語)が参考になります．
+
+https://youtu.be/KHRxZc4m0Vc
+
 ### ステップ0：マイコン基板動作の確認
 IMXRT1050-EVKBには"D4"ピンにLEDが接続されています．これを対話式の環境(REPL)で動かしてみます．  
 サンプルコード`step00_LED_by_manual_operation.py`を手で打ってみます．  

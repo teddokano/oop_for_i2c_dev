@@ -13,7 +13,7 @@ MicroPythonを使ってマイコンに接続したLM75B互換のI²C温度セン
 
 > **Note**
 *Github向けのノート* ： 
-この記事はQiitaでも公開されています．  
+この記事は[Qiitaでも公開](https://qiita.com/teddokano/items/a166cf807249a02d6c3d)されています．  
 すべてのコード例はこのサイト内の`samples`フォルダから入手可能です．
 
 ## 動かしてみる:MicroPythonでのLチカ
